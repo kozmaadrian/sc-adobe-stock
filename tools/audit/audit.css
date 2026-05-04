@@ -14,6 +14,23 @@
     width: 100%;
     min-height: 100vh;
     margin: 0;
+    font-family: inherit;
+}
+
+audit-search-header,
+audit-workspace,
+audit-path-list,
+audit-timeline {
+    display: block;
+    font-family: inherit;
+}
+
+audit-detail-panel {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    font-family: inherit;
 }
 
 *,
@@ -26,6 +43,7 @@
     min-height: 100vh;
     display: grid;
     grid-template-rows: auto 1fr;
+    font-family: inherit;
 }
 
 .audit-header {
@@ -34,10 +52,10 @@
     z-index: 20;
     backdrop-filter: blur(14px);
     background: rgb(255 255 255 / 88%);
-    border-bottom: 1px solid var(--audit-line);
 }
 
 .header-inner {
+    border-bottom: 1px solid var(--audit-line);
     max-width: var(--audit-header-max);
     margin: 0 auto;
     padding: 14px 22px 16px;
@@ -421,6 +439,7 @@ input[type="text"] {
     min-height: 0;
     display: flex;
     flex-direction: column;
+    font-family: inherit;
 }
 
 /* Flat list column: no card chrome; rules between rows; spacing from preview via workspace gap */
@@ -461,7 +480,8 @@ input[type="text"] {
     grid-row: 2;
 }
 
-.audit-workspace__cell--head-sidebar.panel-head > .panel-head__sidebar-aside-label {
+.audit-workspace__cell--head-sidebar.panel-head
+    > .panel-head__sidebar-aside-label {
     grid-column: 2;
     grid-row: 2;
     justify-self: end;
@@ -587,6 +607,7 @@ input[type="text"] {
     min-height: 0;
     overflow: auto;
     max-height: calc(100vh - 260px);
+    font-family: inherit;
 }
 
 .panel-scroll--sidebar {
@@ -603,12 +624,16 @@ input[type="text"] {
 }
 
 /* Empty / loading / choose-path: same vertical placement (fill pane + center). */
-.panel-scroll--detail > .audit-empty-layout {
+.panel-scroll--detail > .audit-empty-layout,
+.panel-scroll--detail > audit-detail-panel > .audit-empty-layout {
     flex: 1 1 auto;
     min-height: 0;
 }
 
-.panel-scroll--detail > .audit-review:has(.audit-empty-layout) {
+.panel-scroll--detail > .audit-review:has(.audit-empty-layout),
+.panel-scroll--detail
+    > audit-detail-panel
+    > .audit-review:has(.audit-empty-layout) {
     flex: 1 1 auto;
     min-height: 0;
 }
@@ -623,10 +648,15 @@ input[type="text"] {
     min-height: 0;
 }
 
+.audit-review {
+    font-family: inherit;
+}
+
 .audit-sidebar-list {
     list-style: none;
     margin: 0;
     padding: 0;
+    font-family: inherit;
 }
 
 .audit-sidebar-item {
@@ -687,9 +717,7 @@ input[type="text"] {
 }
 
 .sidebar-result__path code {
-    font-family:
-        ui-monospace, sfmono-regular, menlo, consolas, "Liberation Mono",
-        monospace;
+    font-family: inherit;
     font-size: 12px;
     font-weight: 500;
     line-height: 1.45;
