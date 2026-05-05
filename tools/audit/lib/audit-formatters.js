@@ -108,11 +108,6 @@ export function formatEventKind(kind) {
   return 'Modified';
 }
 
-export function formatAuthorLabel(value) {
-  if (!value || typeof value !== 'string') return '';
-  return value.trim();
-}
-
 export function authorsFromEmails(emails) {
   if (!Array.isArray(emails) || !emails.length) return '';
   const labels = [

@@ -243,15 +243,15 @@ export async function searchContentPaths(org, site, term, token, options = {}) {
   const searchableFiles = [];
 
   try {
-    while (directories.length > 0) {
+    while (directories.length > 0 && searchableFiles.length < maxFiles) {
       const directory = directories.shift();
       const listSuffix = directory ? `/${encodePath(directory)}` : '';
       const listUrl = `${VERSION_API_BASE_URL}/list/${encodeURIComponent(org)}/${encodeURIComponent(site)}${listSuffix}`;
       const itemsPayload = await fetchJSON(listUrl, token);
       const items = normalizeListResponse(itemsPayload);
 
-      items.forEach((item) => {
-        if (!item?.path) return;
+      for (const item of items) {
+        if (!item?.path) continue;
 
         if (!item.ext) {
           const relativeDirectory = getListPath(item.path, org, site);
@@ -259,15 +259,15 @@ export async function searchContentPaths(org, site, term, token, options = {}) {
             visitedDirectories.add(relativeDirectory);
             directories.push(relativeDirectory);
           }
-          return;
+          continue;
         }
 
         const ext = normalizeExt(item);
-        if (!SEARCHABLE_FILE_EXTENSIONS.has(ext)) return;
-        if (searchableFiles.length >= maxFiles) return;
+        if (!SEARCHABLE_FILE_EXTENSIONS.has(ext)) continue;
 
         searchableFiles.push(item);
-      });
+        if (searchableFiles.length >= maxFiles) break;
+      }
     }
   } catch (error) {
     return { success: false, error: `Search scope failed: ${error.message}` };
@@ -305,12 +305,7 @@ export async function searchContentPaths(org, site, term, token, options = {}) {
         dedupedPaths.add(normalizedPath);
         results.push({
           path: normalizedPath,
-          name: file.name || filename.replace(/\.[^.]+$/, ''),
-          ext: normalizeExt(file),
           lastModified: file.lastModified || null,
-          matchType: matchedByPath && matchedByContent
-            ? 'path+content'
-            : (matchedByPath ? 'path' : 'content'),
         });
       }
     }

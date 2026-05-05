@@ -4,16 +4,12 @@ import {
   parseTimestamp,
 } from './audit-formatters.js';
 
-const VERSION_API_HOST = 'https://admin.da.live';
-
 export function createLoadingAuditState() {
   return {
     loading: true,
     error: '',
     warning: '',
-    summary: null,
     timeline: [],
-    statusLinks: [],
   };
 }
 
@@ -90,10 +86,6 @@ export function buildVersionEvents(versions) {
       details.push(`Version ID: ${versionId || 'N/A'}`);
     }
 
-    const link = entry.url
-      ? (entry.url.startsWith('http') ? entry.url : `${VERSION_API_HOST}${entry.url}`)
-      : '';
-
     events.push({
       kind,
       title,
@@ -103,31 +95,10 @@ export function buildVersionEvents(versions) {
       badgeLabel: formatEventKind(kind),
       pillVariant,
       details,
-      link,
     });
 
     return events;
   }, []);
-}
-
-export function buildSummary(events) {
-  const summary = {
-    total: 0,
-    published: 0,
-    modified: 0,
-    previewed: 0,
-    versioned: 0,
-  };
-
-  events.forEach((event) => {
-    summary.total += 1;
-    if (event.kind === 'published') summary.published += 1;
-    else if (event.kind === 'previewed') summary.previewed += 1;
-    else if (event.kind === 'versioned') summary.versioned += 1;
-    else summary.modified += 1;
-  });
-
-  return summary;
 }
 
 export function buildTimeline(versions) {
@@ -146,22 +117,17 @@ export function buildAuditPayload(versionResult) {
       loading: false,
       error: `Audit failed. Version List API: ${versionError}.`,
       warning: '',
-      summary: null,
       timeline: [],
-      statusLinks: [],
     };
   }
 
   const versions = hasVersions ? (versionResult.versions || []) : [];
   const timeline = buildTimeline(versions);
-  const summary = buildSummary(timeline);
 
   return {
     loading: false,
     error: '',
     warning: '',
-    summary,
     timeline,
-    statusLinks: [],
   };
 }

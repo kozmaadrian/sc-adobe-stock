@@ -46,7 +46,6 @@ function datetimeLocalToIso(value) {
 
 class ContentAudit extends LitElement {
   static properties = {
-    _context: { state: true },
     _token: { state: true },
     _org: { state: true },
     _site: { state: true },
@@ -79,7 +78,7 @@ class ContentAudit extends LitElement {
     const logRange = defaultLogDatetimeRangeLocal();
     this._logFrom = logRange.from;
     this._logTo = logRange.to;
-    this._logFilterPreview = true;
+    this._logFilterPreview = false;
     this._logFilterLive = false;
     this._activeSearchRequest = 0;
   }
@@ -102,24 +101,24 @@ class ContentAudit extends LitElement {
 
   handleFieldChange(field, value) {
     if (field === 'site') {
-      this._site = typeof value === 'string' ? value.trim() : '';
-      if (!this._site) {
+      const nextSite = typeof value === 'string' ? value.trim() : '';
+      if (nextSite !== this._site) {
+        this._site = nextSite;
         this.resetSearchResults();
       }
       return;
     }
 
     if (field === 'searchTerm') {
-      this._searchTerm = typeof value === 'string' ? value : '';
-      if (!this._searchTerm.trim()) {
-        this.resetSearchResults();
-      }
+      const nextSearchTerm = typeof value === 'string' ? value : '';
+      this._searchTerm = nextSearchTerm;
       return;
     }
 
     if (field === 'org') {
-      this._org = typeof value === 'string' ? value.trim() : '';
-      if (!this._org) {
+      const nextOrg = typeof value === 'string' ? value.trim() : '';
+      if (nextOrg !== this._org) {
+        this._org = nextOrg;
         this.resetSearchResults();
       }
       return;
@@ -288,6 +287,10 @@ class ContentAudit extends LitElement {
       scanned: result.scanned,
       durationMs,
     };
+
+    if (results.length === 1 && results[0]?.path) {
+      void this.selectResultPath(results[0].path);
+    }
   }
 
   async handleSearchSubmit() {
@@ -456,7 +459,6 @@ export default async function init(el) {
   el.replaceChildren();
   const { context, token } = await DA_SDK;
   const cmp = document.createElement(EL_NAME);
-  cmp._context = context;
   cmp._token = token;
   cmp._org = context?.org || context?.owner || '';
   cmp._site = DEFAULT_SITE;

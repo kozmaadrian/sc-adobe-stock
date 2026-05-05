@@ -68,8 +68,8 @@ class AuditWorkspace extends LitElement {
         <button
           type="button"
           class="icon-tool-trigger timeline-refresh-trigger ${hasPath
-            ? ''
-            : 'timeline-refresh-trigger--placeholder'}"
+        ? ''
+        : 'timeline-refresh-trigger--placeholder'}"
           title="Reload activity for this path from the server (version list)"
           aria-label="Refresh activity timeline"
           ?disabled=${!hasPath || loading}
@@ -112,12 +112,12 @@ class AuditWorkspace extends LitElement {
             ${this.renderTimelineTrailing()}
           </div>
           ${hasPath
-            ? html`
+        ? html`
               <p class="panel-head__path-under">
                 <code>${pathForDisplay(path)}</code>
               </p>
             `
-            : html`
+        : html`
               <p class="panel-head__path-under panel-head__path-under--hint">
                 Select a path from the list to inspect its timeline.
               </p>

@@ -24,7 +24,7 @@ class AuditSearchHeader extends LitElement {
     this.fullTextSearch = false;
     this.logFrom = '';
     this.logTo = '';
-    this.logFilterPreview = true;
+    this.logFilterPreview = false;
     this.logFilterLive = false;
     this.canSearch = false;
     this._filtersOpen = false;
