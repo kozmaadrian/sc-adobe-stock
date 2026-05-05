@@ -14,12 +14,6 @@ function sanitizeVariantClass(value) {
     .replace(/[^a-z0-9_-]/g, '') || 'modified';
 }
 
-function safeExternalLink(link) {
-  if (typeof link !== 'string') return '';
-  if (link.startsWith('https://') || link.startsWith('http://')) return link;
-  return '';
-}
-
 class AuditTimeline extends LitElement {
   static properties = {
     events: { type: Array },
@@ -65,15 +59,6 @@ class AuditTimeline extends LitElement {
     `;
   }
 
-  renderEventLink(eventLink) {
-    if (!eventLink) return '';
-    return html`
-      <a class="event-link" href=${eventLink} target="_blank" rel="noopener">
-        Open link
-      </a>
-    `;
-  }
-
   renderTimelineEvent(event) {
     const heading = event?.title || formatEventKind(event?.kind);
     const isoTimestamp = Number.isFinite(event?.timestamp)
@@ -86,7 +71,6 @@ class AuditTimeline extends LitElement {
       : [];
     const author = typeof event?.author === 'string' ? event.author : '';
     const variantClass = sanitizeVariantClass(actionPillVariant(event));
-    const eventLink = safeExternalLink(event?.link);
 
     return html`
       <li class="timeline-event" role="listitem">
@@ -101,7 +85,6 @@ class AuditTimeline extends LitElement {
           <div class="event-foot">
             ${this.renderAuthor(author)}
             <span class="pill pill--${variantClass}">${actionPillLabel(event)}</span>
-            ${this.renderEventLink(eventLink)}
           </div>
         </div>
       </li>

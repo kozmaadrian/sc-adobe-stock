@@ -1,6 +1,5 @@
 import {
   authorsFromEmails,
-  formatAuthorLabel,
   formatEventKind,
   parseTimestamp,
 } from './audit-formatters.js';
@@ -22,92 +21,40 @@ export function classifyVersionEvent(entry = {}) {
   const normalizedLabel = entry.label?.toLowerCase() || '';
 
   if (normalizedLabel.includes('publish')) {
-    return { kind: 'published', title: 'Content published' };
+    return {
+      kind: 'published',
+      title: 'Published',
+      pillVariant: 'published',
+    };
+  }
+
+  if (normalizedLabel.includes('preview')) {
+    return {
+      kind: 'previewed',
+      title: 'Previewed',
+      pillVariant: 'preview',
+    };
   }
 
   if (entry.versionId) {
-    if (normalizedLabel.includes('preview')) {
-      return { kind: 'version', title: 'Version previewed' };
-    }
-    return { kind: 'version', title: 'New version created' };
+    return {
+      kind: 'versioned',
+      title: 'Versioned',
+      pillVariant: 'version',
+    };
   }
 
-  return { kind: 'modified', title: 'Content modified' };
-}
-
-/**
- * Maps Status API payload to timeline rows.
- * - preview.sourceLastModified -> source edit in DA.
- * - preview.lastModified -> preview site build time.
- * - live.lastModified -> production site publish time.
- */
-export function buildStatusEvents(status) {
-  const events = [];
-  const preview = status?.preview;
-  const live = status?.live;
-
-  if (preview?.sourceLastModified) {
-    const timestamp = parseTimestamp(preview.sourceLastModified);
-    if (!Number.isNaN(timestamp)) {
-      const details = [];
-      const author = preview.lastModifiedBy
-        ? formatAuthorLabel(preview.lastModifiedBy)
-        : '';
-
-      if (preview.sourceLocation) {
-        details.push(`Source ${preview.sourceLocation}`);
-      }
-
-      events.push({
-        kind: 'modified',
-        title: 'Source updated (preview)',
-        source: 'Status API',
-        timestamp,
-        author,
-        badgeLabel: 'Modified',
-        pillVariant: 'modified',
-        details,
-      });
-    }
-  }
-
-  if (preview?.lastModified) {
-    const timestamp = parseTimestamp(preview.lastModified);
-    if (!Number.isNaN(timestamp)) {
-      events.push({
-        kind: 'version',
-        title: 'Preview site updated',
-        source: 'Status API',
-        timestamp,
-        badgeLabel: 'Preview',
-        pillVariant: 'preview',
-        details: preview.url ? [`Preview URL ${preview.url}`] : [],
-      });
-    }
-  }
-
-  if (live?.lastModified) {
-    const timestamp = parseTimestamp(live.lastModified);
-    if (!Number.isNaN(timestamp)) {
-      events.push({
-        kind: 'published',
-        title: 'Live site updated',
-        source: 'Status API',
-        timestamp,
-        badgeLabel: 'Live',
-        pillVariant: 'published',
-        details: live.url ? [`Live URL ${live.url}`] : [],
-      });
-    }
-  }
-
-  return events;
+  return {
+    kind: 'modified',
+    title: 'Modified',
+    pillVariant: 'modified',
+  };
 }
 
 /**
  * Version List API entries:
- * - `label` drives action-pill text when present.
- * - `kind` is inferred from label + version metadata.
+ * - Status is inferred from log label + version metadata.
+ * - Modified rows have no version ID.
  */
 export function buildVersionEvents(versions) {
   if (!Array.isArray(versions) || !versions.length) return [];
@@ -132,18 +79,15 @@ export function buildVersionEvents(versions) {
     if (seen.has(key)) return events;
     seen.add(key);
 
-    const { kind, title } = classifyVersionEvent(entry);
+    const { kind, title, pillVariant } = classifyVersionEvent(entry);
     const details = [];
-    if (entry.label) details.push(`Label ${entry.label}`);
-    if (entry.versionId) details.push(`Version ID ${entry.versionId}`);
 
     const labelRaw = entry.label?.trim() || '';
-    const labelLow = labelRaw.toLowerCase();
-    let pillVariant = kind;
-    if (labelLow.includes('preview')) {
-      pillVariant = 'preview';
-    } else if (labelLow.includes('publish')) {
-      pillVariant = 'published';
+    const versionId = entry.versionId?.trim() || '';
+
+    if (kind !== 'modified') {
+      details.push(`Version label: ${labelRaw || 'N/A'}`);
+      details.push(`Version ID: ${versionId || 'N/A'}`);
     }
 
     const link = entry.url
@@ -156,7 +100,7 @@ export function buildVersionEvents(versions) {
       source: 'Version List API',
       timestamp,
       author: authorsFromEmails(users),
-      badgeLabel: labelRaw || formatEventKind(kind),
+      badgeLabel: formatEventKind(kind),
       pillVariant,
       details,
       link,
@@ -171,39 +115,36 @@ export function buildSummary(events) {
     total: 0,
     published: 0,
     modified: 0,
-    versions: 0,
+    previewed: 0,
+    versioned: 0,
   };
 
   events.forEach((event) => {
     summary.total += 1;
     if (event.kind === 'published') summary.published += 1;
-    else if (event.kind === 'version') summary.versions += 1;
+    else if (event.kind === 'previewed') summary.previewed += 1;
+    else if (event.kind === 'versioned') summary.versioned += 1;
     else summary.modified += 1;
   });
 
   return summary;
 }
 
-export function buildTimeline(status, versions) {
-  const events = [
-    ...buildStatusEvents(status),
-    ...buildVersionEvents(versions),
-  ];
+export function buildTimeline(versions) {
+  const events = buildVersionEvents(versions);
 
   return events.sort((left, right) => right.timestamp - left.timestamp);
 }
 
-export function buildAuditPayload(statusResult, versionResult) {
-  const hasStatus = Boolean(statusResult?.success);
+export function buildAuditPayload(versionResult) {
   const hasVersions = Boolean(versionResult?.success);
 
-  const statusError = statusResult?.error || 'Unknown error';
   const versionError = versionResult?.error || 'Unknown error';
 
-  if (!hasStatus && !hasVersions) {
+  if (!hasVersions) {
     return {
       loading: false,
-      error: `Audit failed. Status API: ${statusError}. Version List API: ${versionError}.`,
+      error: `Audit failed. Version List API: ${versionError}.`,
       warning: '',
       summary: null,
       timeline: [],
@@ -211,24 +152,16 @@ export function buildAuditPayload(statusResult, versionResult) {
     };
   }
 
-  const status = hasStatus ? statusResult.status : null;
   const versions = hasVersions ? (versionResult.versions || []) : [];
-  const timeline = buildTimeline(status, versions);
+  const timeline = buildTimeline(versions);
   const summary = buildSummary(timeline);
-  const statusLinks = Object.entries(status?.links || {})
-    .map(([name, url]) => ({ name, url }))
-    .filter((entry) => entry.url);
-
-  const failedSources = [];
-  if (!hasStatus) failedSources.push(`Status API: ${statusError}`);
-  if (!hasVersions) failedSources.push(`Version List API: ${versionError}`);
 
   return {
     loading: false,
     error: '',
-    warning: failedSources.length ? `Partial data only. ${failedSources.join(' | ')}` : '',
+    warning: '',
     summary,
     timeline,
-    statusLinks,
+    statusLinks: [],
   };
 }

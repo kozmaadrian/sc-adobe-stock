@@ -13,6 +13,9 @@
     display: block;
     width: 100%;
     min-height: 100vh;
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
     margin: 0;
     font-family: inherit;
 }
@@ -40,9 +43,12 @@ audit-detail-panel {
 }
 
 .audit-shell {
-    min-height: 100vh;
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 0;
     display: grid;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
     font-family: inherit;
 }
 
@@ -55,12 +61,29 @@ audit-detail-panel {
 }
 
 .header-inner {
-    border-bottom: 1px solid var(--audit-line);
+    border-bottom: none;
     max-width: var(--audit-header-max);
     margin: 0 auto;
-    padding: 14px 22px 16px;
+    padding: max(36px, env(safe-area-inset-top, 0px) + 24px) 22px 16px;
     display: grid;
     gap: 14px;
+}
+
+.header-inner::after {
+    content: "";
+    display: block;
+    height: 1px;
+    width: min(88%, 1200px);
+    margin: 4px auto 0;
+    background: linear-gradient(
+        90deg,
+        rgb(15 23 42 / 0%) 0%,
+        rgb(15 23 42 / 8%) 18%,
+        rgb(15 23 42 / 10%) 50%,
+        rgb(15 23 42 / 8%) 82%,
+        rgb(15 23 42 / 0%) 100%
+    );
+    pointer-events: none;
 }
 
 .brand-row {
@@ -90,18 +113,174 @@ audit-detail-panel {
 
 .audit-search-form {
     margin: 0;
+    display: grid;
+    gap: 14px;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Shared: filter + timeline refresh icon controls */
+.icon-tool-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    box-shadow: none;
+    -webkit-appearance: none;
+    appearance: none;
+    color: var(--audit-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+    outline: none;
+    font: inherit;
+    line-height: 0;
+    vertical-align: middle;
+    transition:
+        background 0.15s ease,
+        color 0.15s ease;
+}
+
+.icon-tool-trigger:hover:not(:disabled) {
+    background: rgb(15 23 42 / 6%);
+    color: #334155;
+}
+
+.icon-tool-trigger:focus-visible {
+    outline: 2px solid #2680eb;
+    outline-offset: 2px;
+}
+
+.icon-tool-trigger:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.icon-tool-trigger__icon {
+    display: block;
+    flex-shrink: 0;
+}
+
+.search-filters-panel {
+    margin-top: 2px;
+    padding: 0;
+    border: none;
+}
+
+.search-filters-panel__inner {
+    padding: 6px 0 2px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+}
+
+.search-filters-panel__item {
+    flex: 0 0 auto;
+}
+
+.search-filters-panel__group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    flex: 0 1 auto;
+}
+
+.search-filters-panel__group--sep {
+    border-left: 1px solid var(--audit-line-2);
+    padding-left: 14px;
+    margin-left: 2px;
+}
+
+.search-filters-panel__group--dates {
+    flex: 1 1 280px;
+    min-width: min(100%, 300px);
+}
+
+.search-filters-panel__group--dates .search-filters-panel__datetime {
+    flex: 1 1 200px;
+    min-width: min(100%, 220px);
+}
+
+.search-filters-panel__datetime {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1 1 200px;
+    min-width: min(100%, 220px);
+}
+
+.field-label--inline {
+    flex: 0 0 auto;
+    padding: 0;
+}
+
+.field--datetime-compact {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.field:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    background: rgb(248 250 252);
+}
+
+.switch-control input:disabled + .switch-slider {
+    opacity: 0.55;
+    cursor: not-allowed;
 }
 
 .search-bar {
     display: grid;
-    grid-template-columns:
-        minmax(120px, 0.85fr)
-        minmax(88px, 0.45fr)
-        minmax(160px, 1.5fr)
-        auto
-        auto;
     gap: 12px;
     align-items: center;
+}
+
+.search-bar--full {
+    grid-template-columns:
+        minmax(96px, 1fr)
+        minmax(80px, 0.95fr)
+        minmax(140px, 2fr)
+        auto
+        minmax(32px, 32px);
+    gap: 10px 12px;
+}
+
+.search-bar__query {
+    min-width: 0;
+}
+
+.search-bar__submit {
+    min-width: 96px;
+}
+
+.field-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--audit-muted);
+    white-space: nowrap;
+    padding: 0 2px;
+}
+
+.field--datetime {
+    min-width: 0;
 }
 
 .field {
@@ -157,7 +336,8 @@ audit-detail-panel {
 }
 
 /* Forms outside the header search bar (if any) */
-input[type="text"] {
+input[type="text"],
+input[type="datetime-local"] {
     font-family: inherit;
 }
 
@@ -330,6 +510,14 @@ input[type="text"] {
     padding: 8px 12px 6px;
 }
 
+.search-meta__hint {
+    display: block;
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #475569;
+}
+
 /* Spectrum Progress Circle–style indeterminate ring (visual only; no Spectrum package). */
 .spectrum-progress {
     display: inline-flex;
@@ -385,18 +573,43 @@ input[type="text"] {
 }
 
 .audit-main-area {
+    box-sizing: border-box;
     max-width: var(--audit-header-max);
     width: 100%;
     margin: 0 auto;
     padding: 18px 22px 28px;
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 16px;
-    align-content: start;
+    align-items: stretch;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.audit-main-area > :not(audit-workspace) {
+    flex-shrink: 0;
 }
 
 /* Row 1: both panel heads (same grid row → equal height). Row 2: scroll panes.
    minmax(0,1fr) lets the row shrink below list content so .panel-scroll can scroll
    (plain 1fr implies min-size:auto and expands to fit all rows). */
+/* Fills main below alerts/meta; height follows header (filters open/closed), not a fixed 100vh offset */
+.audit-main-area > audit-workspace {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.audit-main-area > audit-workspace .audit-workspace {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
 .audit-workspace__grid {
     display: grid;
     grid-template-columns: minmax(260px, 38%) minmax(320px, 1fr);
@@ -404,8 +617,9 @@ input[type="text"] {
     column-gap: 16px;
     row-gap: 0;
     align-items: stretch;
-    min-height: calc(100vh - 220px);
-    max-height: calc(100vh - 220px);
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .audit-workspace__cell--head-sidebar {
@@ -453,7 +667,7 @@ input[type="text"] {
 /* Split workspace: matched header row — same padding & type rhythm */
 .audit-workspace .audit-workspace__cell--head-sidebar.panel-head,
 .audit-workspace .audit-workspace__cell--head-detail.panel-head {
-    padding: 14px 18px;
+    padding: 12px 16px;
     box-sizing: border-box;
     height: 100%;
     align-self: stretch;
@@ -550,7 +764,7 @@ input[type="text"] {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    padding: 14px 18px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--audit-line);
 }
 
@@ -562,10 +776,36 @@ input[type="text"] {
 .panel-head__timeline-row {
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
-    gap: 8px 12px;
-    margin: 0 0 4px;
+    gap: 6px 10px;
+    margin: 0 0 2px;
+}
+
+.panel-head__timeline-trailing {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+/* Smaller than main toolbar icons — keeps detail header closer to pre–hero height */
+.audit-workspace .panel-head__timeline-trailing .icon-tool-trigger {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+}
+
+/* Holds width for “N events” before counts load; keeps header stable */
+.panel-head__timeline-meta--reserved {
+    display: inline-block;
+    min-width: 6.25rem;
+    visibility: hidden;
+}
+
+.timeline-refresh-trigger--placeholder {
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .panel-head--hero .panel-head__title--timeline {
@@ -602,11 +842,16 @@ input[type="text"] {
     color: #334155;
 }
 
+.panel-head__path-under--hint {
+    font-family: inherit;
+    font-weight: 400;
+    color: var(--audit-muted);
+}
+
 .panel-scroll {
     flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
-    max-height: calc(100vh - 260px);
     font-family: inherit;
 }
 
@@ -623,10 +868,21 @@ input[type="text"] {
     flex-direction: column;
 }
 
-/* Empty / loading / choose-path: same vertical placement (fill pane + center). */
+/* Direct empty layouts under scroll: grow + center unless .audit-empty-layout--detail-top (detail panel). */
 .panel-scroll--detail > .audit-empty-layout,
-.panel-scroll--detail > audit-detail-panel > .audit-empty-layout {
+.panel-scroll--detail
+    > audit-detail-panel
+    > .audit-empty-layout:not(.audit-empty-layout--detail-top) {
     flex: 1 1 auto;
+    min-height: 0;
+}
+
+/* Choose path / loading: top placement matches timeline empty state. */
+.panel-scroll--detail
+    > audit-detail-panel
+    > .audit-empty-layout.audit-empty-layout--detail-top {
+    flex: 0 0 auto;
+    align-self: stretch;
     min-height: 0;
 }
 
@@ -782,7 +1038,7 @@ input[type="text"] {
     background: rgb(224 242 254 / 95%);
 }
 
-/* Detail pane: choose path, loading, and no-events — same stack and centered position. */
+/* Detail pane: choose path and no-events stack; default grid centers in flex-grown pane. */
 .audit-empty-layout {
     box-sizing: border-box;
     width: 100%;
@@ -790,6 +1046,11 @@ input[type="text"] {
     display: grid;
     place-items: center;
     align-content: center;
+}
+
+.audit-empty-layout.audit-empty-layout--detail-top {
+    place-items: start center;
+    align-content: start;
 }
 
 .empty-card {
@@ -819,11 +1080,44 @@ input[type="text"] {
 }
 
 @media (max-width: 1100px) {
+    :host {
+        height: auto;
+        max-height: none;
+        min-height: 100vh;
+        overflow: visible;
+    }
+
+    .audit-shell {
+        height: auto;
+        min-height: 100vh;
+        max-height: none;
+        overflow: visible;
+        grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .audit-main-area {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: visible;
+    }
+
+    .audit-main-area > audit-workspace {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: visible;
+    }
+
+    .audit-main-area > audit-workspace .audit-workspace {
+        overflow: visible;
+    }
+
     .audit-workspace__grid {
         grid-template-columns: 1fr;
         grid-template-rows: auto auto auto minmax(0, 1fr);
-        min-height: auto;
+        flex: 1 1 auto;
+        min-height: min(52vh, 480px);
         max-height: none;
+        overflow: visible;
     }
 
     .audit-workspace__cell--head-sidebar {
@@ -869,22 +1163,35 @@ input[type="text"] {
 }
 
 @media (max-width: 920px) {
-    .search-bar {
+    .search-bar--full {
         grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+            "org site"
+            "query query"
+            "submit filter";
     }
 
-    .search-bar .field--query {
-        grid-column: 1 / -1;
+    .search-bar__org {
+        grid-area: org;
     }
 
-    .search-bar .search-submit {
-        grid-column: 1 / -1;
+    .search-bar__site {
+        grid-area: site;
+    }
+
+    .search-bar__query {
+        grid-area: query;
+    }
+
+    .search-bar__submit {
+        grid-area: submit;
         width: 100%;
         justify-content: center;
     }
 
-    .search-bar__toggle {
-        justify-self: start;
+    .search-filters-trigger {
+        grid-area: filter;
+        justify-self: end;
     }
 }
 
@@ -895,16 +1202,22 @@ input[type="text"] {
         padding-right: 14px;
     }
 
-    .search-bar {
+    .search-bar--full {
         grid-template-columns: 1fr;
+        grid-template-areas:
+            "org"
+            "site"
+            "query"
+            "submit"
+            "filter";
     }
 
-    .search-bar .field--query {
-        grid-column: auto;
+    .search-bar__submit {
+        width: 100%;
     }
 
-    .search-bar .search-submit {
-        grid-column: auto;
+    .search-filters-trigger {
+        justify-self: start;
     }
 }
 
@@ -1074,24 +1387,6 @@ input[type="text"] {
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-}
-
-.event-link {
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid rgb(38 128 235 / 35%);
-    border-radius: 8px;
-    padding: 4px 10px;
-    font-size: 12px;
-    font-weight: 600;
-    color: #1473e6;
-    background: rgb(239 246 255 / 98%);
-    text-decoration: none;
-}
-
-.event-link:hover {
-    background: rgb(219 234 254 / 98%);
-    border-color: rgb(38 128 235 / 45%);
 }
 
 a {

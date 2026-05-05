@@ -23,7 +23,7 @@ class AuditDetailPanel extends LitElement {
 
   renderMainEmpty() {
     return html`
-      <div class="audit-empty-layout">
+      <div class="audit-empty-layout audit-empty-layout--detail-top">
         <div class="empty-card">
           <p class="audit-main-empty__title">Choose a path</p>
           <p class="audit-main-empty__hint">
@@ -36,7 +36,12 @@ class AuditDetailPanel extends LitElement {
 
   renderLoading() {
     return html`
-      <div class="audit-empty-layout" role="status" aria-live="polite" aria-busy="true">
+      <div
+        class="audit-empty-layout audit-empty-layout--detail-top"
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+      >
         <div class="empty-card">
           <div class="audit-detail-state">
             <div class="audit-detail-state__figure">${renderProgressRing()}</div>

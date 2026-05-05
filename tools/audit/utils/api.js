@@ -2,8 +2,9 @@
  * DA APIs used by the audit tool.
  */
 
-const STATUS_API_BASE_URL = 'https://admin.hlx.page';
+const ADMIN_HLX_BASE_URL = 'https://admin.hlx.page';
 const VERSION_API_BASE_URL = 'https://admin.da.live';
+const DEFAULT_LOG_REF = 'main';
 const SEARCHABLE_FILE_EXTENSIONS = new Set(['html', 'json', 'svg', 'md']);
 
 function stripKnownContentExtensions(path) {
@@ -65,10 +66,19 @@ function encodePath(path) {
     .join('/');
 }
 
-function getStatusPath(documentPath, org, site) {
+/**
+ * Canonical path key for matching list/search paths to Helix log `path` / `paths` values.
+ * @param {string} documentPath
+ * @param {string} org
+ * @param {string} site
+ * @returns {string}
+ */
+export function normalizeAuditContentKey(documentPath, org, site) {
   const normalizedPath = sanitizeAndNormalizePath(documentPath, org, site);
-  const statusPath = stripKnownContentExtensions(normalizedPath);
-  return statusPath === '/' ? '' : statusPath;
+  if (!normalizedPath) return '';
+  const stripped = stripKnownContentExtensions(normalizedPath);
+  if (!stripped || stripped === '/') return '';
+  return stripped;
 }
 
 function getVersionPath(documentPath, org, site) {
@@ -152,24 +162,44 @@ async function fetchText(url, token) {
 }
 
 /**
- * Fetches content status from the Helix status endpoint.
+ * Fetches Helix admin log entries for a time range (`from` / `to`, ISO-8601).
+ * @see https://www.aem.live/docs/admin.html#tag/log
  */
-export async function fetchStatusReport(org, site, documentPath, token) {
-  const statusPath = getStatusPath(documentPath, org, site);
-
+export async function fetchAdminLog(org, site, token, options = {}) {
   if (!org?.trim()) return { success: false, error: 'Organization is required' };
   if (!site?.trim()) return { success: false, error: 'Site is required' };
-  if (!statusPath) return { success: false, error: 'Path is required' };
+
+  const from = typeof options.from === 'string' ? options.from.trim() : '';
+  const to = typeof options.to === 'string' ? options.to.trim() : '';
+  if (!from || !to) {
+    return { success: false, error: 'Log request requires both from and to.' };
+  }
+
+  const ref = typeof options.ref === 'string' && options.ref.trim()
+    ? options.ref.trim()
+    : DEFAULT_LOG_REF;
+
+  const params = new URLSearchParams();
+  params.set('from', from);
+  params.set('to', to);
 
   try {
-    const statusUrl = `${STATUS_API_BASE_URL}/status/${encodeURIComponent(org)}/${encodeURIComponent(site)}/main${encodePath(statusPath)}`;
-    const statusPayload = await fetchJSON(statusUrl, token);
-    const status = statusPayload?.data && typeof statusPayload.data === 'object'
-      ? statusPayload.data
-      : statusPayload;
-    return { success: true, status };
+    const logUrl = `${ADMIN_HLX_BASE_URL}/log/${encodeURIComponent(org)}/${encodeURIComponent(site)}/${encodeURIComponent(ref)}?${params}`;
+    const payload = await fetchJSON(logUrl, token);
+    const entries = Array.isArray(payload?.entries)
+      ? payload.entries
+      : (Array.isArray(payload) ? payload : []);
+    return {
+      success: true,
+      entries: Array.isArray(entries) ? entries : [],
+      from: payload?.from,
+      to: payload?.to,
+    };
   } catch (error) {
-    return { success: false, error: error.message };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Log request failed.',
+    };
   }
 }
 

@@ -103,7 +103,8 @@ export function formatDuration(durationMs) {
 
 export function formatEventKind(kind) {
   if (kind === 'published') return 'Published';
-  if (kind === 'version') return 'Version';
+  if (kind === 'previewed') return 'Previewed';
+  if (kind === 'versioned') return 'Versioned';
   return 'Modified';
 }
 

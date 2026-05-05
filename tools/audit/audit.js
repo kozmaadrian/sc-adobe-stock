@@ -2,11 +2,16 @@ import { html, LitElement } from 'https://da.live/nx/deps/lit/lit-core.min.js';
 import DA_SDK from 'https://da.live/nx/utils/sdk.js';
 import getStyle from 'https://da.live/nx/utils/styles.js';
 import {
-  fetchStatusReport,
+  fetchAdminLog,
   fetchVersionTimeline,
+  normalizeAuditContentKey,
   searchContentPaths,
 } from './utils/api.js';
 import { formatDuration } from './lib/audit-formatters.js';
+import {
+  buildLogPathIndex,
+  resultMatchesLogFilter,
+} from './lib/audit-log-filter.js';
 import {
   buildAuditPayload,
   createLoadingAuditState,
@@ -17,7 +22,27 @@ import './components/audit-workspace.js';
 
 const EL_NAME = 'content-audit';
 const DEFAULT_SITE = 'sc-adobe-stock';
+/** Default Helix log window when Preview/Live filtering is on and dates are empty. */
+const DEFAULT_LOG_FILTER_RANGE_MS = 24 * 60 * 60 * 1000;
 const styles = await getStyle(import.meta.url);
+
+function formatDatetimeLocal(d) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Past 24h window in local time for `datetime-local` inputs (matches default log filter). */
+function defaultLogDatetimeRangeLocal() {
+  const to = new Date();
+  const from = new Date(to.getTime() - DEFAULT_LOG_FILTER_RANGE_MS);
+  return { from: formatDatetimeLocal(from), to: formatDatetimeLocal(to) };
+}
+
+function datetimeLocalToIso(value) {
+  if (!value || typeof value !== 'string') return '';
+  const parsed = new Date(value.trim());
+  return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString();
+}
 
 class ContentAudit extends LitElement {
   static properties = {
@@ -33,6 +58,10 @@ class ContentAudit extends LitElement {
     _alert: { state: true },
     _isSearching: { state: true },
     _fullTextSearch: { state: true },
+    _logFrom: { state: true },
+    _logTo: { state: true },
+    _logFilterPreview: { state: true },
+    _logFilterLive: { state: true },
   };
 
   constructor() {
@@ -47,6 +76,11 @@ class ContentAudit extends LitElement {
     this._alert = null;
     this._isSearching = false;
     this._fullTextSearch = false;
+    const logRange = defaultLogDatetimeRangeLocal();
+    this._logFrom = logRange.from;
+    this._logTo = logRange.to;
+    this._logFilterPreview = true;
+    this._logFilterLive = false;
     this._activeSearchRequest = 0;
   }
 
@@ -88,6 +122,27 @@ class ContentAudit extends LitElement {
       if (!this._org) {
         this.resetSearchResults();
       }
+      return;
+    }
+
+    if (field === 'logFrom') {
+      this._logFrom = typeof value === 'string' ? value : '';
+      return;
+    }
+
+    if (field === 'logTo') {
+      this._logTo = typeof value === 'string' ? value : '';
+      return;
+    }
+
+    if (field === 'logFilterPreview') {
+      this._logFilterPreview = Boolean(value);
+      return;
+    }
+
+    if (field === 'logFilterLive') {
+      this._logFilterLive = Boolean(value);
+      return;
     }
   }
 
@@ -116,6 +171,28 @@ class ContentAudit extends LitElement {
 
   async executeSearch(searchTerm) {
     if (!this._org?.trim() || !this._site?.trim() || !searchTerm?.trim()) return;
+
+    const fromRaw = this._logFrom?.trim() || '';
+    const toRaw = this._logTo?.trim() || '';
+    const useLogFilter = Boolean(this._logFilterPreview || this._logFilterLive);
+
+    if (useLogFilter) {
+      if ((fromRaw && !toRaw) || (!fromRaw && toRaw)) {
+        this._alert = {
+          type: 'error',
+          message: 'Log filter needs both From and To, or leave both empty for the last 24 hours.',
+        };
+        return;
+      }
+      if (fromRaw && toRaw) {
+        const fromMs = new Date(fromRaw).getTime();
+        const toMs = new Date(toRaw).getTime();
+        if (Number.isNaN(fromMs) || Number.isNaN(toMs) || fromMs >= toMs) {
+          this._alert = { type: 'error', message: 'Log from must be before Log to.' };
+          return;
+        }
+      }
+    }
 
     const requestId = ++this._activeSearchRequest;
     const start = performance.now();
@@ -149,27 +226,95 @@ class ContentAudit extends LitElement {
     }
 
     if (requestId !== this._activeSearchRequest) return;
-    this._isSearching = false;
 
     if (!result.success) {
+      this._isSearching = false;
       this._alert = { type: 'error', message: result.error };
       return;
     }
 
+    let results = result.results;
+
+    if (useLogFilter) {
+      let fromIso;
+      let toIso;
+      let matchPreview = this._logFilterPreview;
+      let matchLive = this._logFilterLive;
+
+      if (!fromRaw && !toRaw) {
+        const to = new Date();
+        const from = new Date(to.getTime() - DEFAULT_LOG_FILTER_RANGE_MS);
+        fromIso = from.toISOString();
+        toIso = to.toISOString();
+      } else {
+        fromIso = datetimeLocalToIso(fromRaw);
+        toIso = datetimeLocalToIso(toRaw);
+      }
+
+      const logResult = await fetchAdminLog(this._org, this._site, this._token, {
+        from: fromIso,
+        to: toIso,
+      });
+      if (requestId !== this._activeSearchRequest) return;
+
+      if (!logResult.success) {
+        this._alert = {
+          type: 'warning',
+          message: `Log filter not applied: ${logResult.error}. Showing all path matches.`,
+        };
+      } else {
+        const normalizeKey = (raw) => normalizeAuditContentKey(raw, this._org, this._site);
+        const { previewKeys, liveKeys } = buildLogPathIndex(logResult.entries, normalizeKey);
+        results = results.filter((row) => resultMatchesLogFilter(
+          row,
+          previewKeys,
+          liveKeys,
+          {
+            matchPreview,
+            matchLive,
+          },
+          (path) => normalizeAuditContentKey(path, this._org, this._site),
+        ));
+      }
+    }
+
+    this._isSearching = false;
+    if (requestId !== this._activeSearchRequest) return;
+
     const durationMs = performance.now() - start;
-    this._searchResults = result.results;
+    this._searchResults = results;
     this._searchMeta = {
-      matches: result.results.length,
+      matches: results.length,
       scanned: result.scanned,
       durationMs,
     };
-    this._alert = null;
   }
 
   async handleSearchSubmit() {
     const term = this._searchTerm?.trim() || '';
     if (!term || !this._org?.trim() || !this._site?.trim()) return;
     await this.executeSearch(term);
+  }
+
+  async loadTimelineForPath(path) {
+    if (!path || !this._org?.trim() || !this._site?.trim()) return;
+
+    this._auditByPath = {
+      ...this._auditByPath,
+      [path]: createLoadingAuditState(),
+    };
+
+    const versionResult = await fetchVersionTimeline(
+      this._org,
+      this._site,
+      path,
+      this._token,
+    );
+
+    this._auditByPath = {
+      ...this._auditByPath,
+      [path]: buildAuditPayload(versionResult),
+    };
   }
 
   async selectResultPath(path) {
@@ -184,25 +329,18 @@ class ContentAudit extends LitElement {
     const existing = this._auditByPath[path];
     if (existing && !existing.loading) return;
 
-    this._auditByPath = {
-      ...this._auditByPath,
-      [path]: createLoadingAuditState(),
-    };
-
-    const [statusResult, versionResult] = await Promise.all([
-      fetchStatusReport(this._org, this._site, path, this._token),
-      fetchVersionTimeline(this._org, this._site, path, this._token),
-    ]);
-
-    this._auditByPath = {
-      ...this._auditByPath,
-      [path]: buildAuditPayload(statusResult, versionResult),
-    };
+    await this.loadTimelineForPath(path);
   }
 
   async handleSelectPath(event) {
     const path = event?.detail?.path || '';
     await this.selectResultPath(path);
+  }
+
+  async handleRefreshTimeline(event) {
+    const path = event?.detail?.path || '';
+    if (!path || path !== this._expandedPath) return;
+    await this.loadTimelineForPath(path);
   }
 
   renderAlert() {
@@ -233,13 +371,23 @@ class ContentAudit extends LitElement {
 
   renderSearchMeta() {
     if (!this._searchMeta) return '';
-    if (this._searchMeta.matches > 0) return '';
+
+    const m = this._searchMeta;
+    const lines = [];
+
+    if (m.matches === 0 && m.scanned != null) {
+      lines.push(html`
+        Found ${m.matches} of ${m.scanned} scanned files
+        in ${formatDuration(m.durationMs)}.
+      `);
+    }
+
+    if (!lines.length) return '';
 
     return html`
-      <p class="search-meta search-meta--center">
-        Found ${this._searchMeta.matches} of ${this._searchMeta.scanned} scanned files
-        in ${formatDuration(this._searchMeta.durationMs)}.
-      </p>
+      <div class="search-meta search-meta--center">
+        ${lines}
+      </div>
     `;
   }
 
@@ -261,6 +409,7 @@ class ContentAudit extends LitElement {
         .selectedPath=${this._expandedPath}
         .selectedAudit=${this.selectedAudit}
         @audit-select-path=${this.handleSelectPath}
+        @audit-refresh-timeline=${this.handleRefreshTimeline}
       ></audit-workspace>
     `;
   }
@@ -274,6 +423,10 @@ class ContentAudit extends LitElement {
             .site=${this._site}
             .searchTerm=${this._searchTerm}
             .fullTextSearch=${this._fullTextSearch}
+            .logFrom=${this._logFrom}
+            .logTo=${this._logTo}
+            .logFilterPreview=${this._logFilterPreview}
+            .logFilterLive=${this._logFilterLive}
             .canSearch=${this.canSearch}
             @audit-field-change=${this.handleFieldChangeEvent}
             @audit-full-text-change=${this.handleFullTextChange}
