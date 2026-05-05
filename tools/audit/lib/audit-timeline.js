@@ -10,6 +10,7 @@ export function createLoadingAuditState() {
     error: '',
     warning: '',
     timeline: [],
+    versions: [],
   };
 }
 
@@ -80,6 +81,7 @@ export function buildVersionEvents(versions) {
 
     const labelRaw = entry.label?.trim() || '';
     const versionId = entry.versionId?.trim() || '';
+    const versionUrl = entry.url?.trim() || '';
 
     if (kind !== 'modified') {
       details.push(`Version label: ${labelRaw || 'N/A'}`);
@@ -94,6 +96,9 @@ export function buildVersionEvents(versions) {
       author: authorsFromEmails(users),
       badgeLabel: formatEventKind(kind),
       pillVariant,
+      versionId,
+      versionLabel: labelRaw,
+      versionUrl,
       details,
     });
 
@@ -118,6 +123,7 @@ export function buildAuditPayload(versionResult) {
       error: `Audit failed. Version List API: ${versionError}.`,
       warning: '',
       timeline: [],
+      versions: [],
     };
   }
 
@@ -129,5 +135,6 @@ export function buildAuditPayload(versionResult) {
     error: '',
     warning: '',
     timeline,
+    versions,
   };
 }

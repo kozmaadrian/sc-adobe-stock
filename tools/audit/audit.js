@@ -19,9 +19,9 @@ import {
 import { renderProgressRing } from './components/audit-progress-ring.js';
 import './components/audit-search-header.js';
 import './components/audit-workspace.js';
+import './components/audit-diff-dialog.js';
 
 const EL_NAME = 'content-audit';
-const DEFAULT_SITE = 'sc-adobe-stock';
 /** Default Helix log window when Preview/Live filtering is on and dates are empty. */
 const DEFAULT_LOG_FILTER_RANGE_MS = 24 * 60 * 60 * 1000;
 const styles = await getStyle(import.meta.url);
@@ -61,12 +61,16 @@ class ContentAudit extends LitElement {
     _logTo: { state: true },
     _logFilterPreview: { state: true },
     _logFilterLive: { state: true },
+    _isDiffOpen: { state: true },
+    _diffPath: { state: true },
+    _diffVersions: { state: true },
+    _requestedDiffVersionId: { state: true },
   };
 
   constructor() {
     super();
     this._org = '';
-    this._site = DEFAULT_SITE;
+    this._site = '';
     this._searchTerm = '';
     this._searchResults = [];
     this._searchMeta = null;
@@ -81,6 +85,10 @@ class ContentAudit extends LitElement {
     this._logFilterPreview = false;
     this._logFilterLive = false;
     this._activeSearchRequest = 0;
+    this._isDiffOpen = false;
+    this._diffPath = '';
+    this._diffVersions = [];
+    this._requestedDiffVersionId = '';
   }
 
   connectedCallback() {
@@ -96,6 +104,7 @@ class ContentAudit extends LitElement {
     this._searchMeta = null;
     this._expandedPath = '';
     this._auditByPath = {};
+    this.closeDiffDialog({ resetPath: true });
     if (clearAlert) this._alert = null;
   }
 
@@ -325,10 +334,12 @@ class ContentAudit extends LitElement {
 
     if (this._expandedPath === path) {
       this._expandedPath = '';
+      this.closeDiffDialog({ resetPath: true });
       return;
     }
 
     this._expandedPath = path;
+    this.closeDiffDialog({ resetPath: true });
     const existing = this._auditByPath[path];
     if (existing && !existing.loading) return;
 
@@ -344,6 +355,46 @@ class ContentAudit extends LitElement {
     const path = event?.detail?.path || '';
     if (!path || path !== this._expandedPath) return;
     await this.loadTimelineForPath(path);
+  }
+
+  closeDiffDialog(options = {}) {
+    const { resetPath = false } = options;
+    this._isDiffOpen = false;
+    this._diffVersions = [];
+    this._requestedDiffVersionId = '';
+    if (resetPath) this._diffPath = '';
+  }
+
+  handleCloseDiffDialog() {
+    this.closeDiffDialog();
+  }
+
+  async handleOpenDiff(event) {
+    const requestedVersionId = typeof event?.detail?.versionId === 'string'
+      ? event.detail.versionId.trim()
+      : '';
+    if (!this._expandedPath) return;
+    const versions = Array.isArray(this.selectedAudit?.versions)
+      ? this.selectedAudit.versions
+      : [];
+    const hasVersionCandidates = versions.some((entry) => {
+      const versionId = typeof entry?.versionId === 'string' ? entry.versionId.trim() : '';
+      const versionUrl = typeof entry?.url === 'string' ? entry.url.trim() : '';
+      return Boolean(versionId && versionUrl);
+    });
+
+    if (!hasVersionCandidates) {
+      this._alert = {
+        type: 'warning',
+        message: 'No saved versions are available for this path.',
+      };
+      return;
+    }
+
+    this._diffPath = this._expandedPath;
+    this._diffVersions = versions;
+    this._requestedDiffVersionId = requestedVersionId;
+    this._isDiffOpen = true;
   }
 
   renderAlert() {
@@ -413,6 +464,7 @@ class ContentAudit extends LitElement {
         .selectedAudit=${this.selectedAudit}
         @audit-select-path=${this.handleSelectPath}
         @audit-refresh-timeline=${this.handleRefreshTimeline}
+        @audit-open-diff=${this.handleOpenDiff}
       ></audit-workspace>
     `;
   }
@@ -442,6 +494,16 @@ class ContentAudit extends LitElement {
           ${this.renderSearchMeta()}
           ${this.renderSearchWorkspace()}
         </main>
+        <audit-diff-dialog
+          .open=${this._isDiffOpen}
+          .path=${this._diffPath}
+          .versions=${this._diffVersions}
+          .requestedVersionId=${this._requestedDiffVersionId}
+          .org=${this._org}
+          .site=${this._site}
+          .token=${this._token}
+          @audit-close-diff=${this.handleCloseDiffDialog}
+        ></audit-diff-dialog>
       </div>
     `;
   }
@@ -461,7 +523,7 @@ export default async function init(el) {
   const cmp = document.createElement(EL_NAME);
   cmp._token = token;
   cmp._org = context?.org || context?.owner || '';
-  cmp._site = DEFAULT_SITE;
+  cmp._site = context?.site || context?.repo || '';
   el.append(cmp);
 }
 

@@ -102,7 +102,7 @@ class AuditSearchHeader extends LitElement {
       <div class="header-inner">
         <div class="brand-row">
           <div class="title-wrap">
-            <h1>Audit Explorer</h1>
+            <h1>Audit Explorer (Experimental)</h1>
             <p class="subtitle">
               Find a document and inspect history and compare versions.
             </p>
@@ -143,8 +143,8 @@ class AuditSearchHeader extends LitElement {
               id="search-term"
               name="searchTerm"
               class="field field--query search-bar__query"
-              placeholder="Path query..."
-              aria-label="Search path query"
+              placeholder="Path or full text query..."
+              aria-label="Search query"
               .value=${this.searchTerm}
               @input=${(event) => this.handleFieldInput('searchTerm', event)}
               required

@@ -84,7 +84,11 @@ export function normalizeAuditContentKey(documentPath, org, site) {
 function getVersionPath(documentPath, org, site) {
   const normalizedPath = sanitizeAndNormalizePath(documentPath, org, site);
   if (!normalizedPath) return '';
-  const basePath = stripKnownContentExtensions(normalizedPath);
+  const normalizedWithKnownHtml = normalizedPath.replace(/\.plain\.html$/i, '.html');
+  if (/\.[^/]+$/i.test(normalizedWithKnownHtml)) {
+    return normalizedWithKnownHtml;
+  }
+  const basePath = stripKnownContentExtensions(normalizedWithKnownHtml);
   if (!basePath || basePath === '/') return '';
   return `${basePath}.html`;
 }
@@ -125,6 +129,18 @@ function formatResponseForLog(payload, maxLength = 5000) {
   }
 }
 
+function isAuthenticationStatus(status) {
+  return status === 401 || status === 403;
+}
+
+function authenticationErrorMessage() {
+  return 'Authentication is required. Please sign in to continue.';
+}
+
+function isAuthenticationError(error) {
+  return error instanceof Error && error.message === authenticationErrorMessage();
+}
+
 async function fetchJSON(url, token) {
   const response = await fetch(url, {
     headers: {
@@ -141,6 +157,9 @@ async function fetchJSON(url, token) {
   }
 
   if (!response.ok) {
+    if (isAuthenticationStatus(response.status)) {
+      throw new Error(authenticationErrorMessage());
+    }
     throw new Error(`Request failed: ${response.status} ${response.statusText}. Response: ${formatResponseForLog(payload, 500)}`);
   }
 
@@ -155,10 +174,21 @@ async function fetchText(url, token) {
   });
 
   if (!response.ok) {
+    if (isAuthenticationStatus(response.status)) {
+      throw new Error(authenticationErrorMessage());
+    }
     throw new Error(`Request failed: ${response.status} ${response.statusText}`);
   }
 
   return response.text();
+}
+
+function toAbsoluteVersionSourceUrl(versionUrl) {
+  const raw = typeof versionUrl === 'string' ? versionUrl.trim() : '';
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (raw.startsWith('/')) return `${VERSION_API_BASE_URL}${raw}`;
+  return `${VERSION_API_BASE_URL}/${raw}`;
 }
 
 /**
@@ -226,6 +256,45 @@ export async function fetchVersionTimeline(org, site, documentPath, token) {
 }
 
 /**
+ * Fetches latest source content for a path.
+ */
+export async function fetchLatestDocumentSource(org, site, documentPath, token) {
+  const versionPath = getVersionPath(documentPath, org, site);
+  if (!org?.trim()) return { success: false, error: 'Organization is required' };
+  if (!site?.trim()) return { success: false, error: 'Site is required' };
+  if (!versionPath) return { success: false, error: 'Path is required' };
+
+  try {
+    const sourceUrl = `${VERSION_API_BASE_URL}/source/${encodeURIComponent(org)}/${encodeURIComponent(site)}${encodePath(versionPath)}`;
+    const source = await fetchText(sourceUrl, token);
+    return { success: true, source };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load latest source.',
+    };
+  }
+}
+
+/**
+ * Fetches content for a specific version URL from versionlist entries.
+ */
+export async function fetchVersionSourceByUrl(versionUrl, token) {
+  const resolvedUrl = toAbsoluteVersionSourceUrl(versionUrl);
+  if (!resolvedUrl) return { success: false, error: 'Version source URL is required' };
+
+  try {
+    const source = await fetchText(resolvedUrl, token);
+    return { success: true, source };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load version source.',
+    };
+  }
+}
+
+/**
  * Searches content by filename/path and source contents.
  */
 export async function searchContentPaths(org, site, term, token, options = {}) {
@@ -270,6 +339,9 @@ export async function searchContentPaths(org, site, term, token, options = {}) {
       }
     }
   } catch (error) {
+    if (isAuthenticationError(error)) {
+      return { success: false, error: authenticationErrorMessage() };
+    }
     return { success: false, error: `Search scope failed: ${error.message}` };
   }
 
@@ -319,6 +391,9 @@ export async function searchContentPaths(org, site, term, token, options = {}) {
     }
     await Promise.all(workers);
   } catch (error) {
+    if (isAuthenticationError(error)) {
+      return { success: false, error: authenticationErrorMessage() };
+    }
     return { success: false, error: `Search failed: ${error.message}` };
   }
 
