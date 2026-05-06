@@ -62,9 +62,7 @@ class AuditTimeline extends LitElement {
   renderCompareIcon() {
     return html`
       <svg
-        class="icon-tool-trigger__icon"
-        width="20"
-        height="20"
+        class="timeline-compare-trigger__svg"
         viewBox="0 0 20 20"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
@@ -108,10 +106,12 @@ class AuditTimeline extends LitElement {
         type="button"
         class="icon-tool-trigger timeline-compare-trigger"
         title="Compare this version"
-        aria-label="Compare this version"
         @click=${(clickEvent) => this.handleCompareClick(clickEvent, event)}
       >
-        ${this.renderCompareIcon()}
+        <span class="timeline-compare-trigger__icon-wrap" aria-hidden="true">
+          ${this.renderCompareIcon()}
+        </span>
+        <span class="timeline-compare-trigger__label">Compare</span>
       </button>
     `;
   }
