@@ -76,7 +76,7 @@ class AuditWorkspace extends LitElement {
           @click=${this.handleRefreshTimelineClick}
         >
           <svg
-            class="icon-tool-trigger__icon"
+            class="icon-tool-trigger__icon timeline-refresh-trigger__icon"
             width="20"
             height="20"
             viewBox="0 0 20 20"
