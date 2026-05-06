@@ -130,20 +130,22 @@ class AuditTimeline extends LitElement {
     const variantClass = sanitizeVariantClass(actionPillVariant(event));
 
     return html`
-      <li class="timeline-event" role="listitem">
+      <li class="timeline-event timeline-event--${variantClass}" role="listitem">
         <div class="event-card">
-          <div class="event-top">
-            <strong class="event-top__title">${heading}</strong>
-            <time class="event-top__time" datetime=${isoTimestamp}>
-              ${formatSmartTime(event?.timestamp)}
-            </time>
+          <div class="event-card__main">
+            <div class="event-top">
+              <strong class="event-top__title event-top__title--${variantClass}">${heading}</strong>
+              <time class="event-top__time" datetime=${isoTimestamp}>
+                ${formatSmartTime(event?.timestamp)}${author ? html`, ${author}` : ''}
+              </time>
+            </div>
+            ${this.renderEventDetails(details)}
           </div>
-          ${this.renderEventDetails(details)}
-          <div class="event-foot">
-            ${this.renderAuthor(author)}
-            <span class="pill pill--${variantClass}">${actionPillLabel(event)}</span>
-            ${this.renderCompareTrigger(event)}
-          </div>
+          <aside class="event-card__aside">
+            <div class="event-aside__top">
+              ${this.renderCompareTrigger(event)}
+            </div>
+          </aside>
         </div>
       </li>
     `;

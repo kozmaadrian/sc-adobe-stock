@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="/tools/audit/audit.css" />
     <script src="/tools/audit/audit.js" type="module"></script>
     <style>
-      /* Same frosted surface as `.audit-header` in audit.css */
+      /* Solid surfaces (no backdrop-filter) — avoids blurry / pixelated compositing in iframe + GPU paths */
       html {
         min-height: 100%;
         background: #fff;
@@ -31,9 +31,7 @@
           BlinkMacSystemFont,
           "Segoe UI",
           sans-serif;
-        background: rgb(255 255 255 / 88%);
-        backdrop-filter: blur(14px);
-        -webkit-backdrop-filter: blur(14px);
+        background: #fff;
       }
 
       main {
