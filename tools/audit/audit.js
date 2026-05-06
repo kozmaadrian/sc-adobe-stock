@@ -2,6 +2,7 @@ import { html, LitElement } from 'https://da.live/nx/deps/lit/lit-core.min.js';
 import DA_SDK from 'https://da.live/nx/utils/sdk.js';
 import getStyle from 'https://da.live/nx/utils/styles.js';
 import {
+  authenticationErrorMessage,
   fetchAdminLog,
   fetchVersionTimeline,
   normalizeAuditContentKey,
@@ -266,9 +267,13 @@ class ContentAudit extends LitElement {
       if (requestId !== this._activeSearchRequest) return;
 
       if (!logResult.success) {
+        const err = typeof logResult.error === 'string' ? logResult.error.trim() : '';
+        const isAuth = err === authenticationErrorMessage();
         this._alert = {
           type: 'warning',
-          message: `Log filter not applied: ${logResult.error}. Showing all path matches.`,
+          message: isAuth
+            ? `${authenticationErrorMessage()} Preview and Published filters were not applied; showing all path matches.`
+            : `Log filter not applied: ${err}. Showing all path matches.`,
         };
       } else {
         const normalizeKey = (raw) => normalizeAuditContentKey(raw, this._org, this._site);

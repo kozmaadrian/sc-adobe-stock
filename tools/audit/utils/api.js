@@ -133,7 +133,7 @@ function isAuthenticationStatus(status) {
   return status === 401 || status === 403;
 }
 
-function authenticationErrorMessage() {
+export function authenticationErrorMessage() {
   return 'Authentication is required. Please sign in to continue.';
 }
 

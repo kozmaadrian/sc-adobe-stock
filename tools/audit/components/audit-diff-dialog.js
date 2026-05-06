@@ -280,6 +280,7 @@ class AuditDiffDialog extends LitElement {
   }
 
   updated(changedProperties) {
+    const openChanged = changedProperties.has('open');
     const externalChanged = changedProperties.has('open')
       || changedProperties.has('path')
       || changedProperties.has('versions')
@@ -295,6 +296,10 @@ class AuditDiffDialog extends LitElement {
       return;
     }
 
+    if (openChanged) {
+      this.focusDialogForKeyboardNavigation();
+    }
+
     const signature = [
       this.path,
       this.requestedVersionId,
@@ -306,6 +311,15 @@ class AuditDiffDialog extends LitElement {
 
     this._lastOpenSignature = signature;
     this.initializeDiffState();
+  }
+
+  focusDialogForKeyboardNavigation() {
+    requestAnimationFrame(() => {
+      const overlay = this.querySelector('.audit-diff-overlay');
+      if (overlay instanceof HTMLElement) {
+        overlay.focus({ preventScroll: true });
+      }
+    });
   }
 
   resetState() {
@@ -454,6 +468,72 @@ class AuditDiffDialog extends LitElement {
     void this.loadDiffForSelection();
   }
 
+  getVersionOnlyOptions() {
+    return this._diffOptions.filter((option) => option.type === 'version');
+  }
+
+  getSelectedVersionIndex(side) {
+    const versionOptions = this.getVersionOnlyOptions();
+    if (!versionOptions.length) return -1;
+    const selectedId = side === 'right'
+      ? this._diffRightOptionId
+      : this._diffLeftOptionId;
+    return versionOptions.findIndex((option) => option.id === selectedId);
+  }
+
+  canStepVersion(side, delta) {
+    const versionOptions = this.getVersionOnlyOptions();
+    if (!versionOptions.length) return false;
+
+    const currentIndex = this.getSelectedVersionIndex(side);
+    if (currentIndex === -1) {
+      return delta > 0;
+    }
+
+    const nextIndex = currentIndex + delta;
+    return nextIndex >= 0 && nextIndex < versionOptions.length;
+  }
+
+  stepVersion(side, delta) {
+    const versionOptions = this.getVersionOnlyOptions();
+    if (!versionOptions.length) return;
+
+    let nextIndex;
+    const currentIndex = this.getSelectedVersionIndex(side);
+    if (currentIndex === -1) {
+      if (delta <= 0) return;
+      nextIndex = 0;
+    } else {
+      nextIndex = currentIndex + delta;
+      if (nextIndex < 0 || nextIndex >= versionOptions.length) return;
+    }
+
+    const nextOptionId = versionOptions[nextIndex]?.id || '';
+    if (!nextOptionId) return;
+
+    if (side === 'right') {
+      if (nextOptionId === this._diffRightOptionId) return;
+      this._diffRightOptionId = nextOptionId;
+    } else {
+      if (nextOptionId === this._diffLeftOptionId) return;
+      this._diffLeftOptionId = nextOptionId;
+    }
+
+    void this.loadDiffForSelection();
+  }
+
+  handleStepClick(side, delta, event) {
+    event.preventDefault();
+    this.stepVersion(side, delta);
+  }
+
+  handleDialogKeydown(event) {
+    const key = event?.key || '';
+    if (key !== 'Escape') return;
+    event.preventDefault();
+    this.dispatchClose();
+  }
+
   dispatchClose() {
     this.dispatchEvent(new CustomEvent('audit-close-diff', {
       bubbles: true,
@@ -480,6 +560,44 @@ class AuditDiffDialog extends LitElement {
         <path
           fill="currentColor"
           d="M3.72 3.72A.75.75 0 0 1 4.78 3.72L8 6.94L11.22 3.72A.75.75 0 1 1 12.28 4.78L9.06 8L12.28 11.22A.75.75 0 1 1 11.22 12.28L8 9.06L4.78 12.28A.75.75 0 1 1 3.72 11.22L6.94 8L3.72 4.78A.75.75 0 0 1 3.72 3.72Z"
+        />
+      </svg>
+    `;
+  }
+
+  renderStepIcon(direction) {
+    if (direction === 'up') {
+      return html`
+        <svg
+          class="icon-tool-trigger__icon"
+          width="20"
+          height="20"
+          viewBox="0 0 20 20"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path
+            fill="#292929"
+            d="M3.54492 12.2373C3.54492 12.041 3.62207 11.8437 3.77539 11.6973L9.47851 6.20996C9.76855 5.92969 10.2275 5.92969 10.5176 6.20996L16.2344 11.71C16.5332 11.9971 16.542 12.4727 16.2549 12.7695C15.9678 13.0684 15.4932 13.0781 15.1953 12.79L9.99804 7.79102L4.81445 12.7773C4.5166 13.0654 4.04199 13.0557 3.75488 12.7568C3.61426 12.6123 3.54492 12.4248 3.54492 12.2373Z"
+          />
+        </svg>
+      `;
+    }
+
+    return html`
+      <svg
+        class="icon-tool-trigger__icon"
+        width="20"
+        height="20"
+        viewBox="0 0 20 20"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <path
+          fill="#292929"
+          d="M3.75488 7.24315C4.04199 6.94432 4.5166 6.93455 4.81445 7.22264L9.99804 12.209L15.1953 7.20995C15.4932 6.92187 15.9678 6.93163 16.2549 7.23046C16.542 7.52733 16.5332 8.00292 16.2344 8.29003L10.5176 13.79C10.2275 14.0703 9.76855 14.0703 9.47851 13.79L3.77539 8.30273C3.62207 8.15624 3.54492 7.95898 3.54492 7.76269C3.54492 7.57518 3.61426 7.38768 3.75488 7.24315Z"
         />
       </svg>
     `;
@@ -518,15 +636,8 @@ class AuditDiffDialog extends LitElement {
       `;
     }
 
-    const leftLabel = this.getDiffOptionById(this._diffLeftOptionId)?.label || 'From';
-    const rightLabel = this.getDiffOptionById(this._diffRightOptionId)?.label || 'To';
-
     return html`
       <div class="audit-diff-split" aria-live="polite">
-        <div class="audit-diff-split__labels">
-          <div class="audit-diff-split__label">${leftLabel}</div>
-          <div class="audit-diff-split__label">${rightLabel}</div>
-        </div>
         <div class="audit-diff-split__rows">
           ${this._diffChunks.map((chunk) => {
             const leftValue = chunk.type === 'added' ? '' : chunk.value;
@@ -551,8 +662,20 @@ class AuditDiffDialog extends LitElement {
 
   render() {
     if (!this.open) return '';
+    const canStepFromNewer = this.canStepVersion('left', -1);
+    const canStepFromOlder = this.canStepVersion('left', 1);
+    const canStepToNewer = this.canStepVersion('right', -1);
+    const canStepToOlder = this.canStepVersion('right', 1);
+
     return html`
-      <div class="audit-diff-overlay" role="dialog" aria-modal="true" @click=${this.handleOverlayClick}>
+      <div
+        class="audit-diff-overlay"
+        role="dialog"
+        aria-modal="true"
+        tabindex="0"
+        @click=${this.handleOverlayClick}
+        @keydown=${this.handleDialogKeydown}
+      >
         <section class="audit-diff-dialog" aria-label="Version compare dialog">
           <header class="audit-diff-dialog__head">
             <div>
@@ -572,38 +695,6 @@ class AuditDiffDialog extends LitElement {
             </button>
           </header>
           <div class="audit-diff-dialog__controls">
-            <label class="audit-diff-dialog__field">
-              <span class="field-label">From</span>
-              <select
-                class="field"
-                @change=${(event) => this.handleDiffOptionChange('left', event)}
-              >
-                ${this._diffOptions.map((option) => html`
-                  <option
-                    value=${option.id}
-                    ?selected=${option.id === this._diffLeftOptionId}
-                  >
-                    ${option.label}
-                  </option>
-                `)}
-              </select>
-            </label>
-            <label class="audit-diff-dialog__field">
-              <span class="field-label">To</span>
-              <select
-                class="field"
-                @change=${(event) => this.handleDiffOptionChange('right', event)}
-              >
-                ${this._diffOptions.map((option) => html`
-                  <option
-                    value=${option.id}
-                    ?selected=${option.id === this._diffRightOptionId}
-                  >
-                    ${option.label}
-                  </option>
-                `)}
-              </select>
-            </label>
             <label class="audit-diff-dialog__field audit-diff-dialog__field--mode">
               <span class="field-label">Compare by</span>
               <select
@@ -617,6 +708,88 @@ class AuditDiffDialog extends LitElement {
                 `)}
               </select>
             </label>
+            <div
+              class="audit-diff-dialog__selector-grid"
+              role="group"
+              aria-label="Version selectors"
+            >
+              <label class="audit-diff-dialog__field">
+                <div class="audit-diff-dialog__field-row">
+                  <button
+                    type="button"
+                    class="icon-tool-trigger audit-diff-step-trigger"
+                    title="Newer version"
+                    aria-label="Newer from version"
+                    ?disabled=${!canStepFromNewer}
+                    @click=${(event) => this.handleStepClick('left', -1, event)}
+                  >
+                    ${this.renderStepIcon('up')}
+                  </button>
+                  <select
+                    class="field"
+                    aria-label="From version"
+                    @change=${(event) => this.handleDiffOptionChange('left', event)}
+                  >
+                    ${this._diffOptions.map((option) => html`
+                      <option
+                        value=${option.id}
+                        ?selected=${option.id === this._diffLeftOptionId}
+                      >
+                        ${option.label}
+                      </option>
+                    `)}
+                  </select>
+                  <button
+                    type="button"
+                    class="icon-tool-trigger audit-diff-step-trigger"
+                    title="Older version"
+                    aria-label="Older from version"
+                    ?disabled=${!canStepFromOlder}
+                    @click=${(event) => this.handleStepClick('left', 1, event)}
+                  >
+                    ${this.renderStepIcon('down')}
+                  </button>
+                </div>
+              </label>
+              <label class="audit-diff-dialog__field">
+                <div class="audit-diff-dialog__field-row">
+                  <button
+                    type="button"
+                    class="icon-tool-trigger audit-diff-step-trigger"
+                    title="Newer version"
+                    aria-label="Newer to version"
+                    ?disabled=${!canStepToNewer}
+                    @click=${(event) => this.handleStepClick('right', -1, event)}
+                  >
+                    ${this.renderStepIcon('up')}
+                  </button>
+                  <select
+                    class="field"
+                    aria-label="To version"
+                    @change=${(event) => this.handleDiffOptionChange('right', event)}
+                  >
+                    ${this._diffOptions.map((option) => html`
+                      <option
+                        value=${option.id}
+                        ?selected=${option.id === this._diffRightOptionId}
+                      >
+                        ${option.label}
+                      </option>
+                    `)}
+                  </select>
+                  <button
+                    type="button"
+                    class="icon-tool-trigger audit-diff-step-trigger"
+                    title="Older version"
+                    aria-label="Older to version"
+                    ?disabled=${!canStepToOlder}
+                    @click=${(event) => this.handleStepClick('right', 1, event)}
+                  >
+                    ${this.renderStepIcon('down')}
+                  </button>
+                </div>
+              </label>
+            </div>
           </div>
           <div class="audit-diff-dialog__body">
             ${this.renderDiffBody()}
