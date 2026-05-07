@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Publish</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/tools/publish/publish.css" />
+  </head>
+  <body>
+    <div class="publish-shell">
+      <p class="publish-intro">Validate, then publish.</p>
+      <div class="publish-actions">
+        <button type="button" class="publish-btn" id="publish-run">
+          Publish
+        </button>
+      </div>
+
+      <ul class="publish-live" id="publish-live" aria-live="polite">
+        <li id="publish-step-validate" data-phase="deactivated">
+          <span class="publish-live__icon" aria-hidden="true"></span>
+          <div>
+            <div class="publish-live__label">Validating</div>
+            <p class="publish-live__detail"></p>
+          </div>
+        </li>
+        <li id="publish-step-publish" data-phase="deactivated">
+          <span class="publish-live__icon" aria-hidden="true"></span>
+          <div>
+            <div class="publish-live__label">Publishing</div>
+            <p class="publish-live__detail"></p>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <div id="publish-announcer" class="visually-hidden" aria-live="assertive"></div>
+
+    <style>
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+    </style>
+    <script src="/tools/publish/publish.js" type="module"></script>
+  </body>
+</html>
