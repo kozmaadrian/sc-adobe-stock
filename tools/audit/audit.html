@@ -1,46 +1,162 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
-    <title>Audit Explorer (Experimental)</title>
+    <meta charset="utf-8" />
+    <title>Audit Explorer — moved</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="data:," />
-    <script type="importmap">
-      { "imports": { "da-lit": "/deps/lit/dist/index.js" } }
-    </script>
-    <script src="https://da.live/nx/utils/sdk.js" type="module"></script>
-    <link rel="stylesheet" href="/tools/audit/audit.css" />
-    <script src="/tools/audit/audit.js" type="module"></script>
+    <link
+      rel="canonical"
+      href="https://da.live/app/kozmaadrian/aem-experimental/tools/audit/audit"
+    />
     <style>
-      /* Solid surfaces (no backdrop-filter) — avoids blurry / pixelated compositing in iframe + GPU paths */
-      html {
-        min-height: 100%;
-        background: #fff;
-      }
-
       body {
         margin: 0;
         min-height: 100vh;
-        color: #0f172a;
-        font-family:
-          Inter,
-          adobe-clean,
-          "Source Sans Pro",
-          ui-sans-serif,
-          system-ui,
-          -apple-system,
-          BlinkMacSystemFont,
-          "Segoe UI",
-          sans-serif;
-        background: #fff;
+        display: grid;
+        place-items: center;
+        font-family: system-ui, sans-serif;
+        color: #334155;
+        background: #f8fafc;
       }
-
       main {
-        display: block;
-        min-height: 100vh;
+        text-align: center;
+        padding: 24px;
+        max-width: 32rem;
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #0f172a;
+      }
+      p {
+        margin: 0 0 12px;
+        line-height: 1.5;
+        font-size: 0.95rem;
+      }
+      .countdown {
+        margin-top: 20px;
+        font-size: 0.9rem;
+        color: #64748b;
+      }
+      .countdown strong {
+        color: #0f172a;
+        font-variant-numeric: tabular-nums;
+      }
+      a.audit-redirect {
+        color: #1569ce;
+        font-weight: 600;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+      a.audit-redirect:hover {
+        color: #0d5bbd;
       }
     </style>
   </head>
   <body>
-    <main></main>
+    <main>
+      <h1>Audit Explorer has moved</h1>
+      <p>
+        You'll be taken to the current Audit Explorer shortly. To open
+        it right away, use
+        <a
+          class="audit-redirect"
+          id="audit-redirect-link"
+          href="https://da.live/app/kozmaadrian/aem-experimental/tools/audit/audit"
+          target="_top"
+          rel="noopener noreferrer"
+          >this link</a
+        >.
+      </p>
+      <p class="countdown" aria-live="polite">
+        Redirecting in <strong id="audit-countdown-seconds">10</strong> seconds…
+      </p>
+    </main>
+    <script>
+      (function () {
+        var TARGET =
+          "https://da.live/app/kozmaadrian/aem-experimental/tools/audit/audit";
+
+        function isFramed() {
+          try {
+            return window.self !== window.top;
+          } catch (e) {
+            return true;
+          }
+        }
+
+        /** @returns {boolean} whether navigation was started */
+        function navigateToAudit() {
+          if (isFramed()) {
+            try {
+              window.top.location.replace(TARGET);
+              return true;
+            } catch (e) {
+              /* cross-origin parent: cannot assign top.location */
+            }
+            try {
+              if (window.open(TARGET, "_top")) return true;
+            } catch (e2) {}
+            return false;
+          }
+          window.location.replace(TARGET);
+          return true;
+        }
+
+        var link = document.getElementById("audit-redirect-link");
+        var secondsEl = document.getElementById("audit-countdown-seconds");
+        var secondsLeft = 10;
+        var intervalId = null;
+
+        function clearTimer() {
+          if (intervalId !== null) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
+        }
+
+        link.addEventListener("click", function (event) {
+          clearTimer();
+          if (!isFramed()) {
+            event.preventDefault();
+            window.location.replace(TARGET);
+            return;
+          }
+          try {
+            window.top.location.replace(TARGET);
+            event.preventDefault();
+            return;
+          } catch (e) {
+            /* cross-origin parent */
+          }
+          try {
+            if (window.open(TARGET, "_top")) {
+              event.preventDefault();
+            }
+          } catch (e2) {
+            /* use native <a target="_top"> */
+          }
+        });
+
+        intervalId = window.setInterval(function () {
+          secondsLeft -= 1;
+          if (secondsLeft <= 0) {
+            secondsEl.textContent = "0";
+            clearTimer();
+            if (!navigateToAudit()) {
+              var row = secondsEl.closest(".countdown");
+              if (row) {
+                row.textContent =
+                  "Automatic redirect is not available in this embed. Use the link above.";
+              }
+            }
+            return;
+          }
+          secondsEl.textContent = String(secondsLeft);
+        }, 1000);
+      })();
+    </script>
   </body>
 </html>
